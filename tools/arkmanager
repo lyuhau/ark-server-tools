@@ -3283,7 +3283,6 @@ doRestore(){
   local savedcfgdir="${saverootdir}/Config/LinuxServer"
   local savedir="$(getSavedArksDirectory "${saverootdir}")"
   local savedir="$(getSavedArksDirectory "${saverootdir}")"
-  local clusterdir="$(getArkServerSetting "ClusterDirOverride" "${saverootdir}/clusters/$(getArkServerSetting "clusterid")")"
   local restorePath=
   local stripComponents=1
   if [[ $# -ne 0 ]] ; then
@@ -3299,6 +3298,10 @@ doRestore(){
       exit 1
     fi
   fi
+  # `getArkServerSetting` (and thus `clusterdir`) can only be queried after GameUserSettings.ini has been extracted
+  echo "Restoring GameUserSettings.ini"
+  tar -xjvf "${backupFile}" -C "${savedcfgdir}" --strip-components=${stripComponents} "GameUserSettings.ini"
+  local clusterdir="$(getArkServerSetting "ClusterDirOverride" "${saverootdir}/clusters/$(getArkServerSetting "clusterid")")"
   echo "Restoring from ${backupFile}"
   for file in $(tar -tjf "${backupFile}") ; do
     restorePath=
