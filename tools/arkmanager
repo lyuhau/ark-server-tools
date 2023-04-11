@@ -3236,19 +3236,24 @@ doBackup(){
   
   #Tar the files and remove the original Backup Directory.  Saves about 50MB of disk space per backup
 
-  echo -ne "${NORMAL} Compressing Backup "
-  backupfile="${arkbackupdir}/${daystamp}/${instance}.${datestamp}.tar"
+  if [ "$arkbackuparchive" == "true" ]; then
+    echo -ne "${NORMAL} Archiving Backup "
+    backupfile="${arkbackupdir}/${daystamp}/${instance}.${datestamp}.tar"
 
-  if [ "$arkbackupcompress" == "false" ]; then
-    tar -cf "${backupfile}" -C "${arkbackupdir}" "${datestamp}"
+    if [ "$arkbackupcompress" == "false" ]; then
+      tar -cf "${backupfile}" -C "${arkbackupdir}" "${datestamp}"
+    else
+      backupfile="${backupfile}.bz2"
+      tar -jcf "${backupfile}" -C "${arkbackupdir}" "${datestamp}"
+    fi
   else
-    backupfile="${backupfile}.bz2"
-    tar -jcf "${backupfile}" -C "${arkbackupdir}" "${datestamp}"
+    backupfolder="${arkbackupdir}/${daystamp}/${instance}.${datestamp}"
+    cp -r "${backupdir}" "${backupfolder}"
   fi
 
   rm -rf "${backupdir}"
 
-  if [ -f "${backupfile}" ]; then
+  if [ -f "${backupfile}" ] || [ -d "${backupfolder}" ]; then
    echo -e "${NORMAL}\e[68G[   ${GREEN}OK${NORMAL}   ]"
   else
     echo -e "${NORMAL}\e[68G[ ${RED}FAILED${NORMAL} ]"
@@ -3286,12 +3291,14 @@ doRestore(){
   local restorePath=
   local stripComponents=1
   if [[ $# -ne 0 ]] ; then
-   backupFile=$1
+    backupFile=$1
+  elif [ "$arkbackuparchive" == "true" ]; then
+    backupFile=$(find "${arkbackupdir}/" -type f -printf "%T@ %p\n" | sort -n | cut -d' ' -f 2- | tail -n 1)
   else
-   backupFile=$(find "${arkbackupdir}/" -type f -printf "%T@ %p\n" | sort -n | cut -d' ' -f 2- | tail -n 1)
+    backupFile=$(find "${arkbackupdir}/" -mindepth 2 -maxdepth 2 -type d -printf "%T@ %p\n" | sort -n | cut -d' ' -f 2- | tail -n 1)
   fi
-  if [[ ! -f "$backupFile" ]] ; then
-    if [[ -f "$arkbackupdir/$backupFile" ]] ; then
+  if [[ ! -e "$backupFile" ]] ; then
+    if [[ -e "$arkbackupdir/$backupFile" ]] ; then
       backupFile="$arkbackupdir/$backupFile"
     else
       echo "File $backupFile not found." 1>&2
@@ -3300,10 +3307,15 @@ doRestore(){
   fi
   # `getArkServerSetting` (and thus `clusterdir`) can only be queried after GameUserSettings.ini has been extracted
   echo "Restoring GameUserSettings.ini"
-  tar -xjvf "${backupFile}" -C "${savedcfgdir}" --strip-components=${stripComponents} "GameUserSettings.ini"
+  if [ "$arkbackuparchive" == "true" ]; then
+    tar -xjvf "${backupFile}" -C "${savedcfgdir}" --strip-components=${stripComponents} "GameUserSettings.ini"
+  else
+    mkdir -p "${savedcfgdir}"
+    cp -rf "$backupFile/GameUserSettings.ini" "${savedcfgdir}"
+  fi
   local clusterdir="$(getArkServerSetting "ClusterDirOverride" "${saverootdir}/clusters/$(getArkServerSetting "clusterid")")"
   echo "Restoring from ${backupFile}"
-  for file in $(tar -tjf "${backupFile}") ; do
+  for file in $(if [ "$arkbackuparchive" == "true" ]; then tar -tjf "${backupFile}"; else ls "${backupFile}"; fi) ; do
     restorePath=
     stripComponents=1
     case "${file#*/}" in
@@ -3324,7 +3336,12 @@ doRestore(){
     esac
     if [ -n "${restorePath}" ]; then
       echo "Restoring ${file#*/} to ${restorePath}"
-      tar -xjvf "${backupFile}" -C "${restorePath}" --strip-components=${stripComponents} "${file}"
+      if [ "$arkbackuparchive" == "true" ]; then
+        tar -xjvf "${backupFile}" -C "${restorePath}" --strip-components=${stripComponents} "${file}"
+      else
+        mkdir -p "${restorePath}"
+        cp -rf "$backupFile/${file}" "${restorePath}"
+      fi
       # shellcheck disable=SC2181
       if [ $? == 0 ] ; then
         echo -e "${NORMAL}\e[68G[   ${GREEN}OK${NORMAL}   ]"
