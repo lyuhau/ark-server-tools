@@ -3276,6 +3276,17 @@ doBackup(){
       done)
   fi
 
+  if [ -n "$arkMaxBackups" ]; then
+    find "${arkbackupdir}" -mindepth 2 -maxdepth 2 -type d -printf '%T@\t%p' |
+      sort -n -r |
+      cut -f2-3 |
+      (count=0; while read -r backup; do
+        if (( count++ > arkMaxBackups )); then
+          rm -rf "$backup"
+        fi
+      done)
+  fi
+
   if [ -n "${arkBackupPostCommand}" ] && [ -f "${backupfile}" ]; then
     eval " ${arkBackupPostCommand}"
   fi
