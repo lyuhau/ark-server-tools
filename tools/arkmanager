@@ -3265,12 +3265,12 @@ doBackup(){
   fi
 
   if [ -n "$arkMaxBackupSizeMB" ] && (( arkMaxBackupSizeMB > 64 )); then
-    find "${arkbackupdir}" -type f -printf "%T@\t%s\t%p\n" |
+    find "${arkbackupdir}" -mindepth 2 -maxdepth 2 -printf "%T@\t" -exec du -s {} \; |
       sort -n -r |
       cut -f2-3 |
       (sz=0; while read -r fsz f; do
         if (( sz / 1048576 > arkMaxBackupSizeMB )); then
-          rm "$f"
+          rm -rf "$f"
         fi
         (( sz += fsz ))
       done)
