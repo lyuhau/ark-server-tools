@@ -3246,12 +3246,16 @@ doBackup(){
       backupfile="${backupfile}.bz2"
       tar -jcf "${backupfile}" -C "${arkbackupdir}" "${datestamp}"
     fi
+    rm -rf "${backupdir}"
   else
     backupfolder="${arkbackupdir}/${daystamp}/${instance}.${datestamp}"
-    cp -r "${backupdir}" "${backupfolder}"
+    if [[ -e "$backupfolder" ]]; then
+      cp -r "${backupdir}"/* "${backupfolder}"
+      rm -rf "${backupdir}"
+    else
+      mv "${backupdir}" "${backupfolder}"
+    fi
   fi
-
-  rm -rf "${backupdir}"
 
   if [ -f "${backupfile}" ] || [ -d "${backupfolder}" ]; then
    echo -e "${NORMAL}\e[68G[   ${GREEN}OK${NORMAL}   ]"
