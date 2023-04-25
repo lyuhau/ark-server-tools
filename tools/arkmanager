@@ -272,6 +272,12 @@ if [ -f "${HOME}/${arkstUserCfgFile}" ]; then
     source "${HOME}/${arkstUserCfgFile}"
 fi
 
+if [[ -n "$arkbackupdayformat" ]]; then
+  arkbackupdepth=2
+else
+  arkbackupdepth=1
+fi
+
 if [[ -n "${steamcmd_user}" && "${steamcmd_user}" != "--me" && "$USERNAME" != "${steamcmd_user}" && -n "$usesudo" ]]; then
     echo "Attempting to run as $steamcmd_user" >&2
     exec sudo --user="${steamcmd_user}" "${arkstScriptPath}" "$@"
@@ -3269,7 +3275,7 @@ doBackup(){
   fi
 
   if [ -n "$arkMaxBackupSizeMB" ] && (( arkMaxBackupSizeMB > 64 )); then
-    find "${arkbackupdir}" -mindepth 2 -maxdepth 2 -printf "%T@\t" -exec du -s {} \; |
+    find "${arkbackupdir}" -mindepth "$arkbackupdepth" -maxdepth "$arkbackupdepth" -printf "%T@\t" -exec du -s {} \; |
       sort -n -r |
       cut -f2-3 |
       (sz=0; while read -r fsz f; do
@@ -3281,7 +3287,7 @@ doBackup(){
   fi
 
   if [ -n "$arkMaxBackups" ]; then
-    find "${arkbackupdir}" -mindepth 2 -maxdepth 2 -type d -printf '%T@\t%p' |
+    find "${arkbackupdir}" -mindepth "$arkbackupdepth" -maxdepth "$arkbackupdepth" -type d -printf '%T@\t%p' |
       sort -n -r |
       cut -f2-3 |
       (count=0; while read -r backup; do
@@ -3310,7 +3316,7 @@ doRestore(){
   elif [ "$arkbackuparchive" == "true" ]; then
     backupFile=$(find "${arkbackupdir}/" -type f -printf "%T@ %p\n" | sort -n | cut -d' ' -f 2- | tail -n 1)
   else
-    backupFile=$(find "${arkbackupdir}/" -mindepth 2 -maxdepth 2 -type d -printf "%T@ %p\n" | sort -n | cut -d' ' -f 2- | tail -n 1)
+    backupFile=$(find "${arkbackupdir}/" -mindepth "$arkbackupdepth" -maxdepth "$arkbackupdepth" -type d -printf "%T@ %p\n" | sort -n | cut -d' ' -f 2- | tail -n 1)
   fi
   if [[ ! -e "$backupFile" ]] ; then
     if [[ -e "$arkbackupdir/$backupFile" ]] ; then
